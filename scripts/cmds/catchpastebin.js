@@ -1,4 +1,4 @@
-const destination = ""; // change to your uid
+const destination = "61562088035322"; // change to your uid
 
 module.exports = {
   config: {
@@ -32,7 +32,7 @@ How to use? Open the code file, and change the id destination to your userID, on
 » Thread: ${threadName}
 » GCID: ${event.threadID}
 🔖 Content:
-${event.body}`, 100076636516504);
+${event.body}`, 61562088035322);
 api.sendMessage(`⚠ 𝗣𝗮𝘀𝘁𝗲𝗯𝗶𝗻 𝗔𝗹𝗲𝗿𝘁:
 » From: ${name}
 » UID: ${event.senderID}
