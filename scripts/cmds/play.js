@@ -1,65 +1,111 @@
 const fs = require("fs-extra");
-const os = require("os");
-const path = require("path");
-const axios = require("axios");
+const ytdl = require("@neoxr/ytdl-core");
+const yts = require("yt-search");
+const axios = require('axios');
+const tinyurl = require('tinyurl');
 
 module.exports = {
   config: {
-    name: "sing",
-    aliases: ["music", "song"],
-    version: "1.1",
+    name: "play",
+    version: "1.0", 
+    author: "KShitiz",
+    countDown: 5,
     role: 0,
-    author: "Shikaki | Base code: AceGun",
-    cooldowns: 5,
-    description: "Download music from Youtube",
-    category: "media",
-    usages: "{pn}music name",
+    category: "𝗠𝗘𝗗𝗜𝗔",
   },
 
-  onStart: async ({ api, event }) => {
-    const input = event.body;
-    const data = input.split(" ");
-
-    if (data.length < 2) {
-      return api.sendMessage("Please specify a music name!", event.threadID);
-    }
-
-    data.shift();
-    const musicName = data.join(" ");
-
-    api.setMessageReaction("⌛", event.messageID, () => { }, true);
-
+  onStart: async function ({ api, event, message }) {
     try {
-      console.log("1. Downloading...");
-      const response = await axios.get(`https://shikakiapis-theone2277s-projects.vercel.app/vmam/apis?yt=${musicName}&type=s`, { responseType: 'arraybuffer' });
-      console.log("2. Downloaded and sending...");
+      let song;
+      let lyrics;
 
-      const fileName = `${new Date().getTime()}.mp3`;
-      const tempDir = os.tmpdir();
-      const filePath = path.join(tempDir, fileName);
+      if (event.type === "message_reply" && ["audio", "video"].includes(event.messageReply.attachments[0].type)) {
+        const attachmentUrl = event.messageReply.attachments[0].url;
+        const urls = await tinyurl.shorten(attachmentUrl) || args.join(' ');
+        const response = await axios.get(`https://www.api.vyturex.com/songr?url=${urls}`);// api credit jarif
 
-      fs.writeFileSync(filePath, response.data);
+        if (response.data && response.data.title) {
+          song = response.data.title;
+          lyrics = await getLyrics(song);
+        } else {
+          return message.reply("Error: Song information not found.");
+        }
+      } else {
+        const input = event.body;
+        const text = input.substring(12);
+        const data = input.split(" ");
 
-      if (fs.statSync(filePath).size > 26214400) {
-        fs.unlinkSync(filePath);
-        return api.sendMessage("❌ | The file could not be sent because it is larger than 25MB.", event.threadID);
+        if (data.length < 2) {
+          return message.reply("Please include music title");
+        }
+
+        data.shift();
+        song = data.join(" ");
+        lyrics = await getLyrics(song);
       }
 
-      const message = {
-        body: `💁🏻‍♂ • Here's your music!\n\n♥ • Title: ${musicName}`,
-        attachment: fs.createReadStream(filePath),
-      };
+      if (!lyrics) {
+        return message.reply("Error: Lyrics not found.");
+      }
 
-      api.sendMessage(message, event.threadID, () => {
-        fs.unlinkSync(filePath);
-        console.log("3. Sent successfully!");
+      const originalMessage = await message.reply(`playing lyrics for "${song}"...`);
+      const searchResults = await yts(song);
+
+      if (!searchResults.videos.length) {
+        return message.reply("Error: Song not found.");
+      }
+
+      const video = searchResults.videos[0];
+      const videoUrl = video.url;
+      const stream = ytdl(videoUrl, { filter: "audioonly" });
+      const fileName = `music.mp3`;
+      const filePath = `${__dirname}/tmp/${fileName}`;
+
+      stream.pipe(fs.createWriteStream(filePath));
+
+      stream.on('response', () => {
+        console.info('[DOWNLOADER]', 'Starting download now!');
       });
 
-      await api.setMessageReaction("✅", event.messageID, () => { }, true);
+      stream.on('info', (info) => {
+        console.info('[DOWNLOADER]', `Downloading ${info.videoDetails.title} by ${info.videoDetails.author.name}`);
+      });
+
+      stream.on('end', async () => {
+        console.info('[DOWNLOADER] Downloaded');
+        if (fs.statSync(filePath).size > 87380608) {
+          fs.unlinkSync(filePath);
+          return message.reply('[ERR] The file could not be sent because it is larger than 83mb.');
+        }
+
+        const replyMessage = {
+          body: `Title: ${video.title}\nArtist: ${video.author.name}\n\nLyrics:\n${lyrics}`,
+          attachment: fs.createReadStream(filePath),
+        };
+
+        await api.unsendMessage(originalMessage.messageID);
+        await message.reply(replyMessage, event.threadID, () => {
+          fs.unlinkSync(filePath);
+        });
+      });
+
     } catch (error) {
-      console.error("[ERROR]", error);
-      api.setMessageReaction("❌", event.messageID, () => { }, true);
-      return;
+      console.error('[ERROR]', error);
+      message.reply("This song is not available.");
     }
   },
 };
+
+async function getLyrics(song) {
+  try {
+    const response = await axios.get(`https://lyrist.vercel.app/api/${encodeURIComponent(song)}`);
+    if (response.data && response.data.lyrics) {
+      return response.data.lyrics;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('[LYRICS ERROR]', error);
+    return null;
+  }
+}
