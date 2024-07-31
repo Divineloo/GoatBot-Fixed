@@ -1,57 +1,67 @@
-const axios = require('axios');
-const UPoLPrefix = [
-  '*ai',
-  'ai',
-  '.ai',
-  'bot',
-  'ask',
-  'godlike',
-  'king',
-];
-
-const axiosInstance = axios.create();
-
-module.exports = {
-  config: {
-    name: 'ai',
-    version: '1.2.1',
-    role: 0,
-    category: 'AI',
-    author: 'UPoL/Priyanshi',
-//API Author Priyansh Rajput
-    shortDescription: '',
-    longDescription: '',
-  },
-
-  onStart: async function () {},
-  onChat: async function ({ message, event, args, api, threadID, messageID }) {
-    const ahprefix = UPoLPrefix.find((p) => event.body && event.body.toLowerCase().startsWith(p));
-    if (!ahprefix) {
-      return;
-    }
-
-    const upol = event.body.substring(ahprefix.length).trim();
-    if (!upol) {
-      await message.reply('🄺🄸🄽🄶 🄻🄸🅂🅃🄴🄽🄸🄽🄶 𖣔︎');
-      return;
-    }
-
-    const apply = ['𝚎𝚗𝚝𝚎𝚛 (𝚚)*', '𝙷𝚘𝚠 𝙲𝚊𝚗 𝙸 𝙷𝚎𝚕𝚙 𝚈𝚘𝚞?', '𝚀𝚞𝚊𝚛𝚢 𝙿𝚕𝚎𝚊𝚜𝚎....', '𝙷𝚘𝚠 𝙲𝚊𝚗 𝙸 𝙰𝚜𝚒𝚜𝚝 𝚈𝚘𝚞?'];
-    const randomapply = apply[Math.floor(Math.random() * apply.length)];
-
-    if (args[0] === 'hi') {
-      message.reply(`${randomapply}`);
-      return;
-    }
-
-    const encodedPrompt = encodeURIComponent(args.join(' '));
-
-    await message.reply('🄻🄾🄳🄸🄽🄶....');
-
-    const response = await axiosInstance.get(`https://priyansh-ai.onrender.com/gemini/ai?query=${encodedPrompt}`);
-    const UPoL = response.data;
-    const upolres = `${UPoL}`;
-
-    message.reply(upolres);
+const { getPrefix, getStreamFromURL, uploadImgbb } = global.utils;
+async function ai({ message: m, event: e, args: a, usersData: u }) {
+  var p = [`${await getPrefix(e.threadID)}${this.config.name}`,
+${this.config.name}
+/*"ai"
+*you can add more prefix here
+*/
+]; 
+ if (p.some(b => a[0].toLowerCase().startsWith(b))) {
+try {      
+let prompt = "";
+if (e.type === "message_reply" && e.messageReply.attachments && e.messageReply.attachments[0]?.type === "photo") {
+ const b = await uploadImgbb(e.messageReply.attachments[0].url);
+prompt = a.slice(1).join(" ") + ' ' + b.image.url;
+} else {
+ prompt = a.slice(1).join(" ");
+}
+ var __ = [{ id: e.senderID, tag: await u.getName(e.senderID) }];
+ const r = await require("axios").post(https://test-ai-ihc6.onrender.com/api, {
+  prompt: prompt,
+ apikey: "GayKey-oWHmMb1t8ASljhpgSSUI",
+  name: __[0]['tag'],
+ id: __[0]['id'],
+ });
+var _ = r.data.result.replace(/{name}/g, __[0]['tag']).replace(/{pn}/g, p[0]);
+ if (r.data.av) {
+ if (Array.isArray(r.data.av)) {
+ const avs = r.data.av.map(url => getStreamFromURL(url));
+ const avss = await Promise.all(avs);
+  m.reply({
+ body: _,
+ mentions: __,
+ attachment: avss
+ });
+ } else {
+ m.reply({
+ body: _,
+ mentions: __,
+attachment: await getStreamFromURL(r.data.av)
+  });
   }
+  } else {
+m.reply({
+body: _,
+mentions: __
+  });
+  }
+  } catch (error) {
+ m.reply("Error " + error);
+ }
+ }
+}
+module.exports = {
+config: {
+ name: "ai",
+aliases: [],
+version: 1.6,
+author: "Jun",
+role: 0,
+ shortDescription: "An AI that can do various tasks",
+ guide: "{pn} <query>",
+ category: "AI"
+ },
+ onStart: function() {},
+ onChat: ai
 };
+Error
